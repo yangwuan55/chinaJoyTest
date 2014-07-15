@@ -1,12 +1,9 @@
 package com.baidu.chinajoy;
 
+import android.app.KeyguardManager;
 import android.app.Service;
-import android.content.ComponentName;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.os.Binder;
-import android.os.IBinder;
-import android.os.RemoteException;
+import android.content.*;
+import android.os.*;
 import android.util.Log;
 import android.widget.Toast;
 import com.baidu.camera.chinajoy.MessageReceiver;
@@ -20,8 +17,18 @@ import java.net.URISyntaxException;
  */
 public class SocketService extends Service implements SocketClient.MessageListener {
 
+    public static final String DO_ONRECEIVE = "do.onreceive";
+    public static final String MESSAGE = "message";
+    public static final String CHINAJOY_SERVICE = "chinajoy.service";
+    public static final String ISFROM_RECEIVER = "isfrom_receiver";
     private Binder mBinder = new LocalBinder();
 
+    private Handler mHandler = new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+        }
+    };
     private MessageReceiver mCameraService;
     private boolean mBound;
     ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -52,14 +59,59 @@ public class SocketService extends Service implements SocketClient.MessageListen
     };
     private Config mConfig;
     private SocketClient mSocketClient;
+    private PowerManager mPowerManager;
+    private KeyguardManager mKeyguardManager;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mPowerManager = (PowerManager)getSystemService(POWER_SERVICE);
+        mKeyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null) {
+            boolean isFromReceiver = intent.getBooleanExtra(ISFROM_RECEIVER, false);
+            if (isFromReceiver) {
+                setConfig(Utils.getConfigFromLocal(this));
+            }
+        }
+
+        return super.onStartCommand(intent, flags, startId);
+    }
 
     @Override
     public void onReceive(String message) {
         try {
-            mCameraService.onReceive(message);
+            Log.e("", "yangmengrong " + (message.startsWith("start") || message.startsWith("stop")));
+            if (message.startsWith("start") || message.startsWith("stop")) {
+                doStartOrStop(message);
+            } else if (message.equals("wake")) {
+                unlockScreen(mPowerManager,mKeyguardManager);
+            } else {
+                mCameraService.onReceive(message);
+            }
         } catch (RemoteException e) {
             e.printStackTrace();
         }
+    }
+
+    private void doStartOrStop(final String message) {
+        final String[] split = message.split("_");
+        long timeDelay = Long.parseLong(split[split.length-1]) - System.currentTimeMillis();
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                Log.e(Utils.TAG,"run delay start");
+                try {
+                    mCameraService.onReceive(split[0]);
+                    Log.e(Utils.TAG,"run delay end");
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        },timeDelay);
     }
 
     public class LocalBinder extends Binder {
@@ -76,20 +128,16 @@ public class SocketService extends Service implements SocketClient.MessageListen
     public void setConfig(Config config) {
         this.mConfig = config;
         try {
-            Log.i(Utils.TAG,"setConfig:1");
             if (mSocketClient != null) {
                 mSocketClient.close();
             }
             mSocketClient = new SocketClient(new URI( "ws://"+ config.getIp() +":" + config.getPort() ), new Draft_10());
             mSocketClient.setMessageListener(this);
-            Log.i(Utils.TAG,"setConfig:2");
 
-            Intent intent = new Intent("chinajoy.service");
-            bindService(intent,mServiceConnection,BIND_AUTO_CREATE);
-            Log.i(Utils.TAG,"setConfig:3");
+            Intent intent = new Intent(CHINAJOY_SERVICE);
+            bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
 
             mSocketClient.connect();
-            Log.i(Utils.TAG,"setConfig:4");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             Log.i(Utils.TAG,"URISyntaxException:" + e.toString());
@@ -102,5 +150,15 @@ public class SocketService extends Service implements SocketClient.MessageListen
         if (mBound) {
             unbindService(mServiceConnection);
         }
+    }
+
+    private void unlockScreen(PowerManager pm, KeyguardManager km) {
+        KeyguardManager.KeyguardLock kl = km.newKeyguardLock("unlock");
+        kl.disableKeyguard();
+        PowerManager.WakeLock wl = pm.newWakeLock(
+                PowerManager.ACQUIRE_CAUSES_WAKEUP
+                        |PowerManager.SCREEN_DIM_WAKE_LOCK, "bright");
+        wl.acquire();
+        wl.release();
     }
 }

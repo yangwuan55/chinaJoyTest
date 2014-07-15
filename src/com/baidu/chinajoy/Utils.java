@@ -26,6 +26,9 @@ public class Utils {
     public static Config getConfigFromLocal(Context context) {
         SharedPreferences sp = context.getSharedPreferences(CHINAJOY, Context.MODE_MULTI_PROCESS);
         Config result = new Config(sp.getString(IP,""),sp.getInt(PORT,-1),sp.getString(NUMBER,""));
+        if (result.getIp().equals("")) {
+            result = null;
+        }
         return result;
     }
 }

@@ -22,10 +22,6 @@ public class MyActivity extends Activity implements View.OnClickListener {
     private EditText etIp;
     private EditText etNumber;
 
-    final String IP = "ip";
-    final String PORT = "port";
-    final String NUMBER = "number";
-    final String START_RECEVE_THREAD = "start_receve_thread";
     private Config mConfig;
     private boolean mBound;
     private ServiceConnection mConnection = new ServiceConnection() {
@@ -61,6 +57,21 @@ public class MyActivity extends Activity implements View.OnClickListener {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        updateTexts();
+    }
+
+    private void updateTexts() {
+        Config configFromLocal = Utils.getConfigFromLocal(this);
+        if (configFromLocal != null) {
+            etIp.setText(configFromLocal.getIp());
+            etPort.setText(configFromLocal.getPort()+"");
+            etNumber.setText(configFromLocal.getNumber());
+        }
+    }
+
+    @Override
     public void onClick(View v) {
         initConfig();
         if (mService == null) {
@@ -89,7 +100,7 @@ public class MyActivity extends Activity implements View.OnClickListener {
     protected void onDestroy() {
         super.onDestroy();
         if (mBound) {
-            unbindService(mConnection);
+            getApplicationContext().unbindService(mConnection);
         }
     }
 }
