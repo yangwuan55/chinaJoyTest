@@ -31,7 +31,6 @@ public class MyActivity extends Activity implements View.OnClickListener {
             SocketService.LocalBinder binder = (SocketService.LocalBinder) service;
             mService = binder.getService();
             mService.setConfig(mConfig);
-
             mBound = true;
         }
 
@@ -91,7 +90,7 @@ public class MyActivity extends Activity implements View.OnClickListener {
         Integer port = Integer.parseInt(etPort.getText().toString());
         String ip = etIp.getText().toString();
         String number = etNumber.getText().toString();
-        Log.i(Utils.TAG, "port = " + etPort.getText().toString() + " ip = " + ip + " number = " + number);
+        Log.e(Utils.TAG, "port = " + etPort.getText().toString() + " ip = " + ip + " number = " + number);
         mConfig = new Config(ip, port, number);
         Utils.saveConfig(this, mConfig);
     }

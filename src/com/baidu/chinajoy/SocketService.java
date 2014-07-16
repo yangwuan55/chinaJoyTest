@@ -24,6 +24,7 @@ public class SocketService extends Service implements SocketClient.MessageListen
     public static final String ISFROM_RECEIVER = "isfrom_receiver";
     private static final int CONNECT_CAMERA = 0;
     private static final int CONNECT_SERVER = 1;
+    private static final int FINISH_RUN = 2;
     private Binder mBinder = new LocalBinder();
 
     private Handler mHandler = new Handler(){
@@ -38,6 +39,11 @@ public class SocketService extends Service implements SocketClient.MessageListen
                 case CONNECT_SERVER:
 
                     break;
+
+                case FINISH_RUN:
+                    canRun = true;
+                    updateConfig();
+                    break;
             }
         }
     };
@@ -50,7 +56,6 @@ public class SocketService extends Service implements SocketClient.MessageListen
             // TODO Auto-generated method stub
             mCameraService = null;
             Toast.makeText(getApplicationContext(), "no", Toast.LENGTH_SHORT).show();
-            Log.d("IRemote", "Binding - Service disconnected");
             mBound = true;
         }
 
@@ -65,7 +70,6 @@ public class SocketService extends Service implements SocketClient.MessageListen
                 e.printStackTrace();
             }
             Toast.makeText(getApplicationContext(), "yes", Toast.LENGTH_SHORT).show();
-            Log.d("IRemote", "Binding is done - Service connected");
             mBound = false;
         }
     };
@@ -74,6 +78,8 @@ public class SocketService extends Service implements SocketClient.MessageListen
     private PowerManager mPowerManager;
     private KeyguardManager mKeyguardManager;
     private boolean isFirst = true;
+    private boolean canRun = true;
+    private Thread thread;
 
     @Override
     public void onCreate() {
@@ -88,11 +94,17 @@ public class SocketService extends Service implements SocketClient.MessageListen
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
             boolean isFromReceiver = intent.getBooleanExtra(ISFROM_RECEIVER, false);
-            if (isFromReceiver) {
-                setConfig(Utils.getConfigFromLocal(this));
+            if (thread != null && thread.isAlive()) {
+                canRun = false;
+            } else if (isFromReceiver) {
+                updateConfig();
             }
         }
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    public void updateConfig() {
+        setConfig(Utils.getConfigFromLocal(this));
     }
 
     @Override
@@ -140,18 +152,26 @@ public class SocketService extends Service implements SocketClient.MessageListen
     }
 
     public void setConfig(final Config config) {
-        connectServer(config);
-        mHandler.sendEmptyMessage(CONNECT_CAMERA);
-        if (isFirst) {
-            isFirst = false;
-            new Thread(){
+        if (thread != null && thread.isAlive()) {
+            canRun = false;
+        } else {
+            connectServer(config);
+            mHandler.sendEmptyMessage(CONNECT_CAMERA);
+            thread = new Thread() {
+                public boolean isSendedNumber;
                 @Override
                 public void run() {
-                    while (true) {
-                        WebSocket.READYSTATE readyState = mSocketClient.getReadyState();
+                    while (canRun) {
                         switch (mSocketClient.getReadyState()) {
                             case CLOSED:
+                                isSendedNumber = false;
                                 connectServer(config);
+                                break;
+                            case OPEN:
+                                if (!isSendedNumber) {
+                                    mSocketClient.send("number_" + config.getNumber());
+                                    isSendedNumber = true;
+                                }
                                 break;
                         }
                         try {
@@ -160,8 +180,10 @@ public class SocketService extends Service implements SocketClient.MessageListen
                             e.printStackTrace();
                         }
                     }
+                    mHandler.sendEmptyMessage(FINISH_RUN);
                 }
-            }.start();
+            };
+            thread.start();
         }
     }
 
