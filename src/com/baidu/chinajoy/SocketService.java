@@ -67,6 +67,8 @@ public class SocketService extends Service implements SocketClient.MessageListen
         super.onCreate();
         mPowerManager = (PowerManager)getSystemService(POWER_SERVICE);
         mKeyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        KeyguardManager.KeyguardLock kl = mKeyguardManager.newKeyguardLock("unlock");
+        kl.disableKeyguard();
     }
 
     @Override
