@@ -7,6 +7,7 @@ import android.os.*;
 import android.util.Log;
 import android.widget.Toast;
 import com.baidu.camera.chinajoy.MessageReceiver;
+import org.java_websocket.WebSocket;
 import org.java_websocket.drafts.Draft_10;
 
 import java.net.URI;
@@ -21,12 +22,23 @@ public class SocketService extends Service implements SocketClient.MessageListen
     public static final String MESSAGE = "message";
     public static final String CHINAJOY_SERVICE = "chinajoy.service";
     public static final String ISFROM_RECEIVER = "isfrom_receiver";
+    private static final int CONNECT_CAMERA = 0;
+    private static final int CONNECT_SERVER = 1;
     private Binder mBinder = new LocalBinder();
 
     private Handler mHandler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
+            switch (msg.what) {
+                case CONNECT_CAMERA:
+                    Intent intent = new Intent(CHINAJOY_SERVICE);
+                    bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
+                    break;
+                case CONNECT_SERVER:
+
+                    break;
+            }
         }
     };
     private MessageReceiver mCameraService;
@@ -61,6 +73,7 @@ public class SocketService extends Service implements SocketClient.MessageListen
     private SocketClient mSocketClient;
     private PowerManager mPowerManager;
     private KeyguardManager mKeyguardManager;
+    private boolean isFirst = true;
 
     @Override
     public void onCreate() {
@@ -79,7 +92,6 @@ public class SocketService extends Service implements SocketClient.MessageListen
                 setConfig(Utils.getConfigFromLocal(this));
             }
         }
-
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -127,7 +139,33 @@ public class SocketService extends Service implements SocketClient.MessageListen
         return mBinder;
     }
 
-    public void setConfig(Config config) {
+    public void setConfig(final Config config) {
+        connectServer(config);
+        mHandler.sendEmptyMessage(CONNECT_CAMERA);
+        if (isFirst) {
+            isFirst = false;
+            new Thread(){
+                @Override
+                public void run() {
+                    while (true) {
+                        WebSocket.READYSTATE readyState = mSocketClient.getReadyState();
+                        switch (mSocketClient.getReadyState()) {
+                            case CLOSED:
+                                connectServer(config);
+                                break;
+                        }
+                        try {
+                            sleep(2000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }.start();
+        }
+    }
+
+    private void connectServer(Config config) {
         this.mConfig = config;
         try {
             if (mSocketClient != null) {
@@ -136,13 +174,10 @@ public class SocketService extends Service implements SocketClient.MessageListen
             mSocketClient = new SocketClient(new URI( "ws://"+ config.getIp() +":" + config.getPort() ), new Draft_10());
             mSocketClient.setMessageListener(this);
 
-            Intent intent = new Intent(CHINAJOY_SERVICE);
-            bindService(intent, mServiceConnection, BIND_AUTO_CREATE);
-
             mSocketClient.connect();
         } catch (URISyntaxException e) {
             e.printStackTrace();
-            Log.i(Utils.TAG,"URISyntaxException:" + e.toString());
+            Log.i(Utils.TAG, "URISyntaxException:" + e.toString());
         }
     }
 

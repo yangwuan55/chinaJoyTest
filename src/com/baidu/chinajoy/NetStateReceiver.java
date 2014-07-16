@@ -16,8 +16,6 @@ public class NetStateReceiver extends BroadcastReceiver{
         ConnectivityManager manager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
         Log.e(Utils.TAG,"networkInfo = " + networkInfo.getExtraInfo());
-        boolean isOurNet = networkInfo.getExtraInfo().equals("tp-camera-test");
-        Log.e(Utils.TAG,"isOurNet = " + isOurNet);
         if (networkInfo.isAvailable()) {
             Config configFromLocal = Utils.getConfigFromLocal(context);
             if (configFromLocal != null) {
