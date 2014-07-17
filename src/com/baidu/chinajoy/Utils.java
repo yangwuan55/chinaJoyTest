@@ -19,7 +19,8 @@ public class Utils {
         context.getSharedPreferences(CHINAJOY,Context.MODE_MULTI_PROCESS).edit()
                 .putString(IP,config.getIp())
                 .putInt(PORT,config.getPort())
-                .putString(NUMBER,config.getNumber()).commit();
+                .putString(NUMBER,config.getNumber())
+                .commit();
         Log.i(TAG,"saved config = " + config);
     }
 

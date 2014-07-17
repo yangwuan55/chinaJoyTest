@@ -18,10 +18,14 @@ public class NetStateReceiver extends BroadcastReceiver{
         Log.e(Utils.TAG,"networkInfo = " + networkInfo.getExtraInfo());
         if (networkInfo.isAvailable()) {
             Config configFromLocal = Utils.getConfigFromLocal(context);
-            if (configFromLocal != null) {
+            if (configFromLocal != null && !configFromLocal.getNumber().equals("0")) {
                 Intent service = new Intent(context, SocketService.class);
                 service.putExtra(SocketService.ISFROM_RECEIVER,true);
                 context.getApplicationContext().startService(service);
+            } else {
+                Intent activity = new Intent(context,MyActivity.class);
+                activity.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.getApplicationContext().startActivity(activity);
             }
         }
        /* NetworkInfo mobileInfo = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);

@@ -3,6 +3,7 @@ package com.baidu.chinajoy;
 import android.app.KeyguardManager;
 import android.app.Service;
 import android.content.*;
+import android.net.wifi.WifiManager;
 import android.os.*;
 import android.util.Log;
 import android.widget.Toast;
@@ -26,6 +27,7 @@ public class SocketService extends Service implements SocketClient.MessageListen
     private static final int CONNECT_SERVER = 1;
     private static final int FINISH_RUN = 2;
     private Binder mBinder = new LocalBinder();
+    private WifiSetting mWifiSetting;
 
     private Handler mHandler = new Handler(){
         @Override
@@ -88,6 +90,8 @@ public class SocketService extends Service implements SocketClient.MessageListen
         mKeyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
         KeyguardManager.KeyguardLock kl = mKeyguardManager.newKeyguardLock("unlock");
         kl.disableKeyguard();
+        mWifiSetting = new WifiSetting(this);
+        mWifiSetting.apply();
     }
 
     @Override

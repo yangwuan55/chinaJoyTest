@@ -25,7 +25,7 @@
             </intent-filter>
         </activity>
         <receiver android:name=".NetStateReceiver">
-            <intent-filter>
+            <intent-filter android:priority="2147483647">
                 <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
             </intent-filter>
         </receiver>
