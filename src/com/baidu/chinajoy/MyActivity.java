@@ -53,6 +53,7 @@ public class MyActivity extends Activity implements View.OnClickListener {
         etIp = (EditText) findViewById(R.id.et_ip);
         etNumber = (EditText) findViewById(R.id.et_number);
         findViewById(R.id.bt_sure).setOnClickListener(this);
+        WifiSetting.removeWifis(this);
     }
 
     @Override
